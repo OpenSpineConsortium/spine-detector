@@ -230,7 +230,7 @@ def _ingest_buu_file(csv_p, info, source, LEV_LAT, LEV_AP, rows, rejected, lines
                 rejected[why] += 1
                 continue
             rows.append(dict(
-                image_id=image_id, source=source, provenance="buu",
+                image_id=image_id, source=source, provenance=source,
                 orig_path=str(csv_p.relative_to(RAW)),
                 view=info["view"], acquisition="standing_dr", region="lumbar",
                 facing="left", width=tf.out_w, height=tf.out_h, mm_per_px=None,
