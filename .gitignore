@@ -1,0 +1,9 @@
+data/
+runs/
+logs/
+weights/
+*.pt
+*.png
+*.jpg
+__pycache__/
+.pytest_cache/
