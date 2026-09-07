@@ -28,7 +28,10 @@ import numpy as np
 import pandas as pd
 
 # ----------------------------------------------------------------- vocabularies
-SOURCES = ("csxa", "nhanes", "buu", "mendeley", "cm_spine", "aasce")
+# "buu" is the 77-file partial Drive download; "buu_2000" the official 2,000-pair subset;
+# "buu_3600" the full release when its request form is approved. Same format, distinct
+# deliveries, one spine never ingested twice (build_dataset.do_buu).
+SOURCES = ("csxa", "nhanes", "buu", "buu_2000", "buu_3600", "mendeley", "cm_spine", "aasce", "vindr")
 VIEWS = ("AP", "LAT")
 ACQUISITIONS = ("standing_dr", "supine_dr", "intraop_fluoro", "film", "drr")
 REGIONS = ("cervical", "thoracic", "lumbar", "full_spine")

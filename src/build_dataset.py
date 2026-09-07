@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import zipfile
 from collections import Counter
@@ -241,6 +242,49 @@ def _ingest_buu_file(csv_p, info, source, LEV_LAT, LEV_AP, rows, rejected, lines
                 kp_visible=[1, 1, 1, 1]))
 
 
+# ---------------------------------------------------------------------- AASCE
+def do_aasce() -> pd.DataFrame:
+    root = RAW / "aasce"
+    txt = root / "train_txt"
+    if not (txt / "landmarks.csv").exists():
+        print("  aasce: absent, skipping")
+        return pd.DataFrame()
+    from src.converters.aasce import LEVELS as AASCE_LEVELS, patient_of, quads_for, read_index
+    names, lm, angles = read_index(txt)
+    rows, rejected = [], Counter()
+    for r, fname in enumerate(names):
+        img_p = root / "train" / fname
+        if not img_p.exists():
+            rejected["no_image"] += 1
+            continue
+        img = cv2.imread(str(img_p), cv2.IMREAD_GRAYSCALE)
+        if img is None:
+            rejected["undecodable_image"] += 1
+            continue
+        h, w = img.shape[:2]
+        stem = Path(fname).stem
+        image_id = "aasce_" + re.sub(r"[^A-Za-z0-9_.-]+", "_", stem)
+        tf = _save(image_id, img, already_windowed=True, facing=None)
+        for i, q in enumerate(quads_for(lm[r], w, h)):
+            q = tf.apply_to_points(canonical_slots(q))
+            why = validate_instance(q, tf.out_w, tf.out_h)
+            if why:
+                rejected[why] += 1
+                continue
+            rows.append(dict(
+                image_id=image_id, source="aasce", provenance="aasce",
+                orig_path=str(img_p.relative_to(RAW)),
+                view="AP", acquisition="standing_dr", region="full_spine",
+                facing=None, width=tf.out_w, height=tf.out_h, mm_per_px=None,
+                patient_id="aasce_" + re.sub(r"[^A-Za-z0-9_.-]+", "_", patient_of(stem)), instance_id=i,
+                level=AASCE_LEVELS[i], level_source="inferred_from_position",
+                x1=q[0, 0], y1=q[0, 1], x2=q[1, 0], y2=q[1, 1],
+                x3=q[2, 0], y3=q[2, 1], x4=q[3, 0], y4=q[3, 1],
+                kp_visible=[1, 1, 1, 1]))
+    print(f"  aasce: {len(rows)} instances from {len(names)} images; rejected {dict(rejected)}")
+    return pd.DataFrame(rows)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(INTERIM / "manifest.parquet"))
@@ -248,7 +292,7 @@ def main() -> int:
     IMAGES.mkdir(parents=True, exist_ok=True)
 
     parts = []
-    for name, fn in (("nhanes", do_nhanes), ("mendeley", do_mendeley), ("buu", do_buu)):
+    for name, fn in (("nhanes", do_nhanes), ("mendeley", do_mendeley), ("buu", do_buu), ("aasce", do_aasce)):
         print(f"=== {name} ===")
         try:
             parts.append(fn())
