@@ -168,31 +168,57 @@ def do_mendeley() -> pd.DataFrame:
 
 
 # ------------------------------------------------------------------------ BUU
+# Several BUU deliveries can sit side by side: the 2,000-pair subset (data/raw/buu_2000, the
+# official single-file release, 2026-09-07) and the 77-file partial Drive download
+# (data/raw/buu_v1). They overlap by patient. Roots are read in priority order and a patient
+# already ingested from an earlier root is skipped from a later one, so one spine never
+# appears twice under two source tags; the source tag records which delivery it came from.
+BUU_ROOTS = (("buu_2000", "buu_2000"), ("buu_v1", "buu"))
+
+
 def do_buu() -> pd.DataFrame:
-    root = RAW / "buu_v1"
-    if not root.exists():
-        print("  buu: absent, skipping")
-        return pd.DataFrame()
     from src.converters.buu import lines_to_quads, parse_stem, read_edge_lines
     LEV_LAT = ["L1", "L2", "L3", "L4", "L5", "S1"]
     LEV_AP = ["L1", "L2", "L3", "L4", "L5"]
     rows, rejected = [], Counter()
-    for csv_p in sorted(root.rglob("*.csv")):
-        info = parse_stem(csv_p.stem)
-        if info is None:
+    seen_patients: set[str] = set()
+    for root_name, source in BUU_ROOTS:
+        root = RAW / root_name
+        if not root.exists():
+            print(f"  {source}: absent, skipping")
             continue
+        this_root: set[str] = set()
+        n_before = len(rows)
+        for csv_p in sorted(root.rglob("*.csv")):
+            info = parse_stem(csv_p.stem)
+            if info is None:
+                continue
+            if info["patient"] in seen_patients:
+                rejected[f"{source}:patient_already_ingested"] += 1
+                continue
+            this_root.add(info["patient"])
+            _ingest_buu_file(csv_p, info, source, LEV_LAT, LEV_AP, rows, rejected,
+                             lines_to_quads, read_edge_lines)
+        seen_patients |= this_root
+        print(f"  {source}: {len(rows) - n_before} instances from {len(this_root)} patients")
+    print(f"  buu total: {len(rows)} instances; rejected {dict(rejected)}")
+    return pd.DataFrame(rows)
+
+
+def _ingest_buu_file(csv_p, info, source, LEV_LAT, LEV_AP, rows, rejected, lines_to_quads, read_edge_lines):
+    if True:
         img_p = csv_p.with_suffix(".jpg")
         if not img_p.exists():
             rejected["no_image"] += 1
-            continue
+            return
         lines = read_edge_lines(csv_p)
         if lines is None:
             rejected["unparsable"] += 1
-            continue
+            return
         img = cv2.imread(str(img_p), cv2.IMREAD_GRAYSCALE)
         if img is None:
             rejected["undecodable_image"] += 1
-            continue
+            return
         image_id = f"buu_{csv_p.stem}"
         tf = _save(image_id, img, already_windowed=True, facing="left")
         levels = LEV_LAT if info["view"] == "LAT" else LEV_AP
@@ -203,7 +229,7 @@ def do_buu() -> pd.DataFrame:
                 rejected[why] += 1
                 continue
             rows.append(dict(
-                image_id=image_id, source="buu", provenance="buu",
+                image_id=image_id, source=source, provenance="buu",
                 orig_path=str(csv_p.relative_to(RAW)),
                 view=info["view"], acquisition="standing_dr", region="lumbar",
                 facing="left", width=tf.out_w, height=tf.out_h, mm_per_px=None,
@@ -213,8 +239,6 @@ def do_buu() -> pd.DataFrame:
                 x1=q[0, 0], y1=q[0, 1], x2=q[1, 0], y2=q[1, 1],
                 x3=q[2, 0], y3=q[2, 1], x4=q[3, 0], y4=q[3, 1],
                 kp_visible=[1, 1, 1, 1]))
-    print(f"  buu: {len(rows)} instances; rejected {dict(rejected)}")
-    return pd.DataFrame(rows)
 
 
 def main() -> int:
