@@ -17,7 +17,7 @@ cd "${HOME}/spine-detector"
 mkdir -p data/raw/buu_drive logs
 pip install --quiet --upgrade gdown 2>&1 | tail -1
 echo "start $(date)"
-gdown --folder --remaining-ok --continue "https://drive.google.com/drive/folders/1pSqtxYT_B2GHweoDAVB_32JNsHykuZK4" -O data/raw/buu_drive
+gdown --folder --continue "https://drive.google.com/drive/folders/1pSqtxYT_B2GHweoDAVB_32JNsHykuZK4" -O data/raw/buu_drive
 rc=$?
 echo "gdown exit ${rc} $(date)"
 find data/raw/buu_drive -type f | wc -l; du -sh data/raw/buu_drive
