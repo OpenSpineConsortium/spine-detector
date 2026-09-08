@@ -13,7 +13,7 @@
 # looked for runs/detect_v2*/weights/best.pt, but ultralytics wrote the run under
 # runs/pose/runs/detect_v2 (the task directory is inserted under --project), so it found
 # nothing. This job resolves the weights wherever they landed.
-set -euo pipefail
+set -uo pipefail
 cd "$HOME/spine-detector"
 source "$HOME/mambaforge/etc/profile.d/conda.sh"; conda activate spinedet
 W=$(ls -t runs/pose/runs/detect_v2*/weights/best.pt runs/detect_v2*/weights/best.pt 2>/dev/null | head -1)
