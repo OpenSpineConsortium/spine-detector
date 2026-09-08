@@ -30,7 +30,7 @@ python -m src.train --data data/yolo_v2/data.yaml --model yolo11m-pose.pt \
     --epochs 120 --imgsz 1024 --batch 16 --device 0 --workers 12 \
     --project runs --name detect_v2
 echo "=============== PREDICT + EVALUATE (v2) ==============="
-W=$(ls -t runs/detect_v2*/weights/best.pt 2>/dev/null | head -1)
+W=$(ls -t runs/pose/runs/detect_v2*/weights/best.pt runs/detect_v2*/weights/best.pt 2>/dev/null | head -1)
 echo "using weights: $W"
 python -m src.run_eval --weights "$W" \
     --manifest data/interim/manifest.parquet --images data/interim/images \
